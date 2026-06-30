@@ -28,6 +28,15 @@ yarn-error.log*
 .env
 .env*.local
 
+# Firebase service account (JANGAN PERNAH PUSH!)
+*.json
+!components.json
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
 # vercel
 .vercel
 

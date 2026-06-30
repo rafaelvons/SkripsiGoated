@@ -3,7 +3,7 @@ import time
 import numpy as np
 
 FLASK_URL  = "http://localhost:8000/api/predict"
-TEST_FILE  = "test_audio.wav"  # ganti dengan file wav yang ada di folder
+TEST_FILE  = "baby_0016_seg00.wav"  
 N_TRIALS   = 10
 
 latencies = []

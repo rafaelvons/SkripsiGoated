@@ -118,11 +118,49 @@ async def predict(audio: UploadFile = File(...)):
         raise HTTPException(status_code=500, detail=f"Gagal simpan ke Firebase: {e}")
 
     print(f"Prediksi: {predicted_label} ({confidence:.2f}%)")
-    return {"status": "success", "prediction": predicted_label, "confidence": confidence}
+    print(f"  [PROB] {prob_dict}")
+    return {"status": "success", "prediction": predicted_label, "confidence": confidence, "probabilities": prob_dict}
+
+@app.post("/api/debug_predict")
+async def debug_predict(audio: UploadFile = File(...)):
+    """Endpoint debug: tampilkan semua probabilitas per label (tanpa simpan ke Firebase)."""
+    if svm_pipeline is None:
+        raise HTTPException(status_code=500, detail="Model SVM belum dimuat.")
+
+    audio_bytes = await audio.read()
+    if not audio_bytes:
+        raise HTTPException(status_code=400, detail="File audio kosong.")
+
+    try:
+        features = extract_features(audio_bytes).reshape(1, -1)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Ekstraksi fitur gagal: {e}")
+
+    pred_encoded    = svm_pipeline.predict(features)
+    predicted_label = str(label_encoder.inverse_transform(pred_encoded)[0])
+    pred_proba      = svm_pipeline.predict_proba(features)[0]
+    prob_dict       = {label_encoder.classes_[i]: round(float(p) * 100, 2)
+                       for i, p in enumerate(pred_proba)}
+
+    # Urutkan dari probabilitas tertinggi ke terendah
+    sorted_probs = dict(sorted(prob_dict.items(), key=lambda x: x[1], reverse=True))
+
+    print(f"\n=== DEBUG PREDICT ===")
+    for lbl, prob in sorted_probs.items():
+        bar = "█" * int(prob / 5)
+        print(f"  {lbl:15s}: {prob:6.2f}% {bar}")
+    print(f"  => Hasil: {predicted_label}")
+    print(f"===================")
+
+    return {
+        "predicted_label"  : predicted_label,
+        "all_probabilities": sorted_probs,
+        "note"             : "Gunakan endpoint ini untuk melihat distribusi probabilitas saat pengujian"
+    }
 
 @app.get("/")
 def read_root():
-    return {"message": "API Klasifikasi Tangisan Bayi — POST audio ke /api/predict"}
+    return {"message": "API Klasifikasi Tangisan Bayi — POST audio ke /api/predict | Debug ke /api/debug_predict"}
 
 if __name__ == "__main__":
     import uvicorn
